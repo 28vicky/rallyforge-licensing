@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RallyForge Admin</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#16181d;--mute:#626976;--line:#e3e6eb;--acc:#2f6fed;--ok:#1f8a4c;--warn:#b26a00;--bad:#c62f2f;--chip:#eef1f5}
+@media (prefers-color-scheme:dark){:root{--bg:#121417;--card:#1b1e23;--ink:#e9ebef;--mute:#9aa1ad;--line:#2b2f36;--acc:#6a9bff;--ok:#4cc27e;--warn:#e0a03a;--bad:#ff6b6b;--chip:#252a31}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:2}
+h1{font-size:16px;margin:0 8px 0 0}.stats{display:flex;gap:14px;color:var(--mute)}.stats b{color:var(--ink)}
+main{max-width:1180px;margin:0 auto;padding:18px 16px 60px;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute);margin:0 0 10px}
+input,select,textarea{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:7px 9px;width:100%}
+textarea{min-height:60px;resize:vertical}label{display:block;font-size:12px;color:var(--mute);margin:8px 0 3px}
+button{font:inherit;border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:7px;padding:7px 12px;cursor:pointer;white-space:nowrap}
+button.primary{background:var(--acc);border-color:var(--acc);color:#fff}button.danger{color:var(--bad)}button:disabled{opacity:.5}
+.row{display:flex;gap:8px;align-items:end;flex-wrap:wrap}.row>*{flex:1;min-width:110px}.row>button{flex:0 0 auto}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{text-align:left;padding:6px 6px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--mute);font-weight:500}
+tr.click{cursor:pointer}tr.click:hover{background:var(--chip)}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;background:var(--chip)}
+.s-active{color:var(--ok)}.s-grace{color:var(--warn)}.s-expired{color:var(--bad)}
+.mute{color:var(--mute)}.big{font-size:20px;font-weight:600}.empty{color:var(--mute);padding:6px 0}
+.code{font:600 22px ui-monospace,Consolas,monospace;letter-spacing:.08em;padding:10px;border:1px dashed var(--acc);border-radius:8px;text-align:center;margin:8px 0}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:8px;display:none;z-index:5}
+.ev{font:12px ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word}
+.flag{color:var(--bad);font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>RallyForge Admin</h1>
+  <div class="stats" id="stats"></div>
+  <div style="flex:1"></div>
+  <form id="find" class="row" style="min-width:320px;flex:0 1 420px">
+    <input id="q" placeholder="Find account by email" autocomplete="off">
+    <button class="primary">Find</button>
+  </form>
+</header>
+<main>
+  <section>
+    <div id="acct"></div>
+    <div class="card"><h2>Expiring in the next 7 days (incl. in grace)</h2><div id="expiring"></div></div>
+    <div class="card"><h2>Flagged - look manually, never auto-ban</h2><div id="flagged"></div></div>
+    <div class="card"><h2>At their instance limit now</h2><div id="atlimit"></div></div>
+    <div class="card"><h2>Newest accounts</h2><div id="recent"></div></div>
+  </section>
+  <aside>
+    <div class="card">
+      <h2>Create account (key-user migration)</h2>
+      <form id="create">
+        <label>Email</label><input name="email" required>
+        <div class="grid2">
+          <div><label>Instances</label><input name="instances" type="number" min="1" value="1"></div>
+          <div><label>Days</label><input name="days" type="number" min="0" value="30"></div>
+        </div>
+        <label>Plan</label><select name="plan"><option value="paid">Paid</option><option value="trial">Trial</option></select>
+        <label>Notes</label><textarea name="notes" placeholder="e.g. migrated from key test5, 12 days carried over"></textarea>
+        <div style="margin-top:10px"><button class="primary">Create + make reset code</button></div>
+      </form>
+      <div id="createOut"></div>
+    </div>
+    <div class="card">
+      <h2>Backup</h2>
+      <p class="mute" style="margin:0 0 8px">Download all accounts, payments and PCs (no passwords). Do it daily.</p>
+      <button id="export">Download backup</button>
+    </div>
+  </aside>
+</main>
+<div id="toast"></div>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const dt = (ms) => ms ? new Date(ms).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+const ago = (ms) => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
+const toLocalInput = (ms) => { const d = new Date(ms); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+function toast(t) { const el = $('#toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => el.style.display = 'none', 3200); }
+
+async function api(path, body) {
+  const r = await fetch('api/' + path, body ? { method: 'POST', headers: { 'content-type': 'application/json', 'x-admin': '1' }, body: JSON.stringify(body) } : {});
+  const j = await r.json().catch(() => ({ ok: false, message: 'Bad response (' + r.status + ')' }));
+  if (!j.ok) { toast(j.message || 'Failed'); throw new Error(j.message); }
+  return j;
+}
+
+function accTable(list, cols = ['email', 'status', 'instances', 'expires']) {
+  if (!list.length) return '<div class="empty">None</div>';
+  const head = { email: 'Email', status: 'Status', instances: 'Inst.', expires: 'Expires', created: 'Created', flag: 'Flag' };
+  const cell = {
+    email: (a) => esc(a.email),
+    status: (a) => `<span class="s-${a.status}">${a.plan} · ${a.status}</span>`,
+    instances: (a) => a.instance_limit ?? '',
+    expires: (a) => dt(a.expires_at),
+    created: (a) => dt(a.created_at),
+    flag: (a) => `<span class="flag">${esc(a.flagged)}</span>`,
+  };
+  return `<table><tr>${cols.map((c) => `<th>${head[c]}</th>`).join('')}</tr>${list.map((a) =>
+    `<tr class="click" data-id="${esc(a.id)}">${cols.map((c) => `<td>${cell[c](a)}</td>`).join('')}</tr>`).join('')}</table>`;
+}
+
+async function loadOverview() {
+  const o = await api('overview');
+  const t = o.totals;
+  $('#stats').innerHTML = `<span><b>${t.accounts}</b> accounts</span><span><b>${t.active}</b> active</span><span><b>${t.running}</b> instances running</span><span><b>${t.pcs_online}</b> PCs online</span>`;
+  $('#expiring').innerHTML = accTable(o.expiring);
+  $('#flagged').innerHTML = accTable(o.flagged, ['email', 'status', 'flag']);
+  $('#atlimit').innerHTML = o.at_limit.length ? `<table><tr><th>Email</th><th>In use</th></tr>${o.at_limit.map((a) => `<tr class="click" data-id="${esc(a.id)}"><td>${esc(a.email)}</td><td>${a.in_use} of ${a.instance_limit}</td></tr>`).join('')}</table>` : '<div class="empty">None</div>';
+  $('#recent').innerHTML = accTable(o.recent, ['email', 'status', 'instances', 'created']);
+}
+
+let current = null;
+async function openAccount(q) {
+  const j = await api('account?' + new URLSearchParams(q));
+  if (!j.found) {
+    $('#acct').innerHTML = `<div class="card"><h2>No exact match</h2>${j.matches.length ? accTable(j.matches.map((m) => ({ ...m, status: '', plan: '' })), ['email']) : '<div class="empty">Nothing found.</div>'}</div>`;
+    return;
+  }
+  current = j.account;
+  const a = j.account, card = j.card;
+  $('#acct').innerHTML = `
+  <div class="card">
+    <div class="row" style="align-items:center">
+      <div><div class="big">${esc(a.email)}</div>
+        <div class="mute"><span class="s-${a.status}">${a.plan} · ${a.status}</span> · expires ${dt(a.expires_at)}${a.status === 'grace' ? ' · grace until ' + dt(a.grace_until) : ''} · created ${dt(a.created_at)}</div>
+        ${a.flagged ? `<div class="flag">Flag: ${esc(a.flagged)} <button data-act="clearflag" style="padding:2px 8px">Clear</button></div>` : ''}
+      </div>
+      <div style="flex:0 0 auto;text-align:right"><div class="big">${card.instances.in_use} of ${card.instances.limit}</div><div class="mute">instances running</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Add days (after a payment)</h2>
+    <form id="addDays" class="row">
+      <div><label>Days</label><input name="days" type="number" min="1" value="30"></div>
+      <div><label>Instances</label><input name="instances" type="number" min="1" value="${a.instance_limit}"></div>
+      <div><label>Amount</label><input name="amount" type="number" step="0.01" placeholder="0"></div>
+      <div><label>Currency</label><input name="currency" value="USD"></div>
+      <div><label>Method</label><input name="method" placeholder="e.g. PayPal"></div>
+      <button class="primary">Add days</button>
+    </form>
+    <div class="mute" style="margin-top:6px">Extends from today or the current expiry, whichever is later, and sets the plan to Paid.</div>
+  </div>
+  <div class="card">
+    <h2>Plan</h2>
+    <form id="plan">
+      <div class="row">
+        <div><label>Plan</label><select name="plan"><option value="trial"${a.plan === 'trial' ? ' selected' : ''}>Trial</option><option value="paid"${a.plan === 'paid' ? ' selected' : ''}>Paid</option></select></div>
+        <div><label>Instances</label><input name="instance_limit" type="number" min="0" value="${a.instance_limit}"></div>
+        <div><label>PC limit</label><input name="device_limit" type="number" min="1" value="${a.device_limit}"></div>
+        <div style="min-width:200px"><label>Expires (your time)</label><input name="expires_at" type="datetime-local" value="${toLocalInput(a.expires_at)}"></div>
+      </div>
+      <label>Email</label><input name="email" value="${esc(a.email)}">
+      <label>Notes</label><textarea name="notes">${esc(a.notes)}</textarea>
+      <div style="margin-top:10px"><button class="primary">Save</button></div>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Actions</h2>
+    <div class="row" style="justify-content:flex-start">
+      <button data-act="reset">Make password reset code</button>
+      <button data-act="trial">Allow a trial again on its PCs</button>
+      <button data-act="signout" class="danger">Sign out all PCs</button>
+    </div>
+    <div id="actOut"></div>
+  </div>
+  <div class="card">
+    <h2>PCs (${card.devices.length} of ${card.device_limit})</h2>
+    ${card.devices.length ? `<table><tr><th>PC</th><th>Running</th><th>Last seen</th><th>Version</th><th></th></tr>${card.devices.map((d) =>
+      `<tr><td>${esc(d.name)}</td><td>${d.running.map((r) => esc(r.name || r.emulator)).join(', ') || '<span class="mute">-</span>'}</td><td>${ago(d.last_seen)}</td><td>${esc(d.app_version)}</td><td>${d.running.length ? `<button data-free="${esc(d.id)}">Free</button>` : ''}</td></tr>`).join('')}</table>` : '<div class="empty">Not signed in anywhere.</div>'}
+  </div>
+  <div class="card">
+    <h2>Payments</h2>
+    ${j.payments.length ? `<table><tr><th>Date</th><th>Amount</th><th>Method</th><th>Days</th><th>Inst.</th></tr>${j.payments.map((p) => `<tr><td>${dt(p.date)}</td><td>${p.amount} ${esc(p.currency)}</td><td>${esc(p.method)}</td><td>${p.days_added}</td><td>${p.instances}</td></tr>`).join('')}</table>` : '<div class="empty">None yet.</div>'}
+  </div>
+  <div class="card">
+    <h2>Log (newest first)</h2>
+    ${j.events.length ? `<table>${j.events.map((e) => `<tr><td class="mute" style="white-space:nowrap">${dt(e.ts)}</td><td><b>${esc(e.kind)}</b> <span class="ev">${esc(e.detail)}</span></td></tr>`).join('')}</table>` : '<div class="empty">Empty.</div>'}
+  </div>`;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+const formData = (f) => Object.fromEntries(new FormData(f).entries());
+
+document.addEventListener('click', async (e) => {
+  const tr = e.target.closest('tr.click');
+  if (tr) return openAccount({ id: tr.dataset.id });
+  const free = e.target.closest('[data-free]');
+  if (free) { await api('free_pc', { id: current.id, device_id: free.dataset.free }); toast('Instances freed'); return openAccount({ id: current.id }); }
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if (!act || !current) return;
+  if (act === 'reset') {
+    const r = await api('reset_code', { id: current.id });
+    $('#actOut').innerHTML = `<div class="code">${esc(r.code)}</div><div class="mute">Give this to the user on Discord. Works once, for ${r.valid_minutes} minutes: app › Forgot password › enter email, code and a new password. All their PCs get signed out.</div>`;
+  } else if (act === 'signout') {
+    if (!confirm('Sign out every PC of ' + current.email + '? Their running instances stop.')) return;
+    const r = await api('signout_all', { id: current.id }); toast('Signed out ' + r.devices + ' PC(s)'); openAccount({ id: current.id });
+  } else if (act === 'trial') {
+    const r = await api('allow_trial_again', { id: current.id }); toast('Trial allowed again on ' + r.pcs + ' PC(s)');
+  } else if (act === 'clearflag') {
+    await api('update', { id: current.id, flagged: '' }); toast('Flag cleared'); openAccount({ id: current.id }); loadOverview();
+  }
+});
+
+document.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button'); if (btn) btn.disabled = true;
+  try {
+    if (f.id === 'find') await openAccount({ email: $('#q').value.trim() });
+    else if (f.id === 'addDays') {
+      const r = await api('add_days', { id: current.id, ...formData(f) });
+      toast('Now expires ' + dt(r.expires_at)); await openAccount({ id: current.id }); loadOverview();
+    } else if (f.id === 'plan') {
+      const d = formData(f);
+      d.expires_at = new Date(d.expires_at).getTime();
+      await api('update', { id: current.id, ...d }); toast('Saved'); await openAccount({ id: current.id }); loadOverview();
+    } else if (f.id === 'create') {
+      const r = await api('create', formData(f));
+      $('#createOut').innerHTML = `<div class="code">${esc(r.reset.code)}</div><div class="mute">Send this with the email to the user. In the app: Forgot password › email + this code › choose a password. Valid ${r.reset.valid_minutes} min - make a new one from the account if it runs out.</div>`;
+      f.reset(); loadOverview();
+    }
+  } catch (_) {} finally { if (btn) btn.disabled = false; }
+});
+
+$('#export').onclick = async () => {
+  const j = await api('export');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(j, null, 2)], { type: 'application/json' }));
+  a.download = 'rallyforge-accounts-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+};
+
+loadOverview();
+</script>
+</body>
+</html>

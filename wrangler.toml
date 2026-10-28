@@ -1,0 +1,25 @@
+# Public API: https://license.rallyforge.workers.dev
+name = "license"
+main = "src/api.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rallyforge-licensing"
+database_id = "REPLACE_WITH_D1_ID"   # printed by: npx wrangler d1 create rallyforge-licensing
+migrations_dir = "migrations"
+
+[vars]
+TRIAL_DAYS = "30"            # friends beta: 30 days
+TRIAL_MAX_INSTANCES = "30"   # user picks any count at sign-up, capped here
+TRIAL_ONE_PER_PC = "on"
+PAID_GRACE_HOURS = "24"
+OFFLINE_GRACE_HOURS = "72"
+LEASE_TTL_MIN = "20"
+HEARTBEAT_SEC = "300"
+DEVICE_LIMIT_DEFAULT = "5"
+WARN_DAYS = "3"
+EMAIL_CODES = "off"          # no domain yet - reset codes come from the admin page via Discord
+
+# Secret (never in this file): LICENCE_PRIVATE_KEY  ->  npx wrangler secret put LICENCE_PRIVATE_KEY

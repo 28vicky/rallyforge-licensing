@@ -1,0 +1,23 @@
+{
+  "name": "rallyforge-licensing",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "node test/run.mjs",
+    "deploy:api": "wrangler deploy",
+    "deploy:admin": "wrangler deploy -c wrangler.admin.toml",
+    "db:migrate": "wrangler d1 migrations apply rallyforge-licensing --remote"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/28vicky/rallyforge-licensing.git"
+  },
+  "bugs": {
+    "url": "https://github.com/28vicky/rallyforge-licensing/issues"
+  },
+  "homepage": "https://github.com/28vicky/rallyforge-licensing#readme",
+  "devDependencies": {
+    "wrangler": "^4.154.0"
+  },
+  "private": true,
+  "type": "module"
+}

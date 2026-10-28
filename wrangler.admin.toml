@@ -1,0 +1,27 @@
+# Owner-only admin: https://admin.rallyforge.workers.dev  (Cloudflare Access must be ON for it)
+name = "admin"
+main = "src/admin.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rallyforge-licensing"
+database_id = "REPLACE_WITH_D1_ID"
+migrations_dir = "migrations"
+
+[vars]
+TRIAL_DAYS = "30"
+TRIAL_MAX_INSTANCES = "30"
+PAID_GRACE_HOURS = "24"
+LEASE_TTL_MIN = "20"
+DEVICE_LIMIT_DEFAULT = "5"
+RESET_CODE_MINUTES = "60"
+ADMIN_EMAILS = "REPLACE_WITH_OWNER_EMAIL"
+ACCESS_TEAM_DOMAIN = "REPLACE_WITH_TEAM.cloudflareaccess.com"
+ACCESS_AUD = "REPLACE_WITH_ACCESS_AUD_TAG"
