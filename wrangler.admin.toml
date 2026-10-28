@@ -12,7 +12,7 @@ fallthrough = true
 [[d1_databases]]
 binding = "DB"
 database_name = "rallyforge-licensing"
-database_id = "REPLACE_WITH_D1_ID"
+database_id = "680f5e10-45d4-453f-ab2d-685ba5d2cd7d"
 migrations_dir = "migrations"
 
 [vars]
