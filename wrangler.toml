@@ -3,6 +3,7 @@ name = "license"
 main = "src/api.js"
 compatibility_date = "2026-10-01"
 workers_dev = true
+preview_urls = false
 
 [[d1_databases]]
 binding = "DB"
