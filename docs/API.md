@@ -60,7 +60,8 @@ Show `message` to the user; branch on `error`.
 
 ## Licence (offline rules)
 `licence` = `B.S`; `B` = base64url JSON, `S` = base64url Ed25519 signature over the ASCII string `B`.
-Public key (raw 32 bytes, base64) is built into the app - from `licence_public_key.txt` (owner makes it with `node scripts/genkeys.mjs`).
+Public key (raw 32 bytes, base64) to build into the app - also in `licence_public_key.txt` in this repo:
+`nBPSFy3mon5jfW/O6E9aTtPRWyDs0swEzAX4DXve94Q=`
 Python check:
 ```python
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
